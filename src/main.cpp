@@ -12,6 +12,10 @@
 #define PIN_SWITCH 6
 #define DEGREE (char)223
 
+#define PERCENT_UP 70
+#define PERCENT_TIME 10000
+
+
 
 LiquidCrystal_I2C lcd(/*address=*/0x27, /*columns=*/16, /*rows=*/2);
 MAX6675 thermocouple(PIN_TEMP_CLK, PIN_TEMP_CS, PIN_TEMP_DO);
@@ -20,6 +24,7 @@ bool relaisState = false;
 int currentTemp = 303;
 char text[2][17];
 unsigned long lastDebounceTime = millis();
+unsigned long lastRelais = millis();
 
 void printlcd() {
     for ( byte i = 0; i<2; i++) {
@@ -45,7 +50,16 @@ void loop() {
         Serial.println(thermocouple.readCelsius());
     }
 
-    relaisState = digitalRead(PIN_SWITCH) && currentTemp < TARGET_TEMP;
+    if (digitalRead(PIN_SWITCH) && currentTemp < TARGET_TEMP) {
+        if (relaisState && (millis() - lastRelais) > PERCENT_TIME / 100 * PERCENT_UP) {
+            lastRelais = millis();
+            relaisState = false;
+        }
+        if (!relaisState && (millis() - lastRelais) > PERCENT_TIME - (PERCENT_TIME / 100 * PERCENT_UP)) {
+            lastRelais = millis();
+            relaisState = true;
+        }
+    }
     digitalWrite(PIN_RELAIS, relaisState);
 
     sprintf(text[0], "current: %03d%c%c %c", currentTemp, DEGREE, 'C', (relaisState == true) ? '^' : '-');
